@@ -7,3 +7,4 @@ reports/
 dump_sources/
 
 **.pyc
+/node_modules/
