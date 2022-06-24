@@ -3,9 +3,9 @@ pragma solidity ^0.8.0;
 
 import "@gif-interface/contracts/components/Product.sol";
 
-
-contract TestProduct is Product {
-
+contract TestProduct is 
+    Product 
+{
     bytes32 public constant POLICY_FLOW = "PolicyFlowDefault";
     string public constant ORACLE_CALLBACK_METHOD_NAME = "oracleCallback";
 
@@ -18,17 +18,17 @@ contract TestProduct is Product {
     mapping(bytes32 => uint256) private _policyIdToPayoutId;
 
     constructor(
-        address gifProductService,
         bytes32 productName,
+        address registry,
         uint256 oracleId
     )
-        Product(gifProductService, productName, POLICY_FLOW)
+        Product(productName, POLICY_FLOW, registry)
     {
         _testOracleId = oracleId;
     }
 
     function applyForPolicy() external payable returns (bytes32 policyId) {
-        address payable policyHolder = payable(msg.sender);
+        address payable policyHolder = payable(_msgSender());
         uint256 premium = msg.value;
 
         // Validate input parameters
@@ -47,7 +47,7 @@ contract TestProduct is Product {
     function submitClaim(bytes32 policyId) external {
         // validations 
         // ensure claim is made by policy holder
-        require(_policyIdToAddress[policyId] == msg.sender, "ERROR:TI-2:INVALID_POLICY_OR_HOLDER");
+        require(_policyIdToAddress[policyId] == _msgSender(), "ERROR:TI-2:INVALID_POLICY_OR_HOLDER");
         // TODO ensure policy is in active state
 
         // increase claims counter

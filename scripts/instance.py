@@ -13,9 +13,7 @@ from brownie import (
     CoreProxy,
     AccessController,
     RegistryController,
-    License,
     LicenseController,
-    Policy,
     PolicyController,
     QueryController,
     ProductService,
@@ -24,6 +22,7 @@ from brownie import (
     ComponentOwnerService,
     PolicyFlowDefault,
     InstanceOperatorService,
+    InstanceService,
     network
 )
 
@@ -118,20 +117,23 @@ class GifInstance(GifRegistry):
         self.access = deployGifModuleV2("Access", AccessController, registry, owner, publishSource)
         self.component = deployGifModuleV2("Component", ComponentController, registry, owner, publishSource)
         self.query = deployGifModuleV2("Query", QueryController, registry, owner, publishSource)
+        self.licence = deployGifModuleV2("License", LicenseController, registry, owner, publishSource)
+        self.policy = deployGifModuleV2("Policy", PolicyController, registry, owner, publishSource)
+        self.componentOwnerService = deployGifModuleV2("ComponentOwnerService", ComponentOwnerService, registry, owner, publishSource)
+        self.instanceService = deployGifModuleV2("InstanceService", InstanceService, registry, owner, publishSource)
 
         # services
-        self.componentOwnerService = deployGifServiceV2("ComponentOwnerService", ComponentOwnerService, registry, owner, publishSource)
+        self.oracleService = deployGifModuleV2("OracleService", OracleService, registry, owner, publishSource)
+        # self.productService = deployGifModuleV2("ProductService", ProductService, registry, owner, publishSource)
 
-        # TODO move modules/services below to V2 mechanism
-        self.licence = deployGifModule(LicenseController, License, registry, owner, publishSource)
-        self.policy = deployGifModule(PolicyController, Policy, registry, owner, publishSource)
+        # TODO these contracts do not work with proxy pattern
         self.policyFlow = deployGifService(PolicyFlowDefault, registry, owner, publishSource)
         self.productService = deployGifService(ProductService, registry, owner, publishSource)
-        self.oracleService = deployGifService(OracleService, registry, owner, publishSource)
 
         # needs to be the last module to register as it will change
         # the address of the instance operator service to its true address
-        self.instanceOperatorService = deployGifService(InstanceOperatorService, registry, owner, publishSource)
+        # self.instanceOperatorService = deployGifService(InstanceOperatorService, registry, owner, publishSource)
+        self.instanceOperatorService = deployGifModuleV2("InstanceOperatorService", InstanceOperatorService, registry, owner, publishSource)
 
         # needs to be called during instance setup
         self.access.setDefaultAdminRole(self.instanceOperatorService.address, {'from': owner})
@@ -140,14 +142,17 @@ class GifInstance(GifRegistry):
     def fromRegistryAddress(self, registry_address):
         self.registry = contractFromAddress(RegistryController, registry_address)
 
-        self.licence = self.contractFromGifRegistry(LicenseController, License._name)
-        self.policy = self.contractFromGifRegistry(PolicyController, Policy._name)
         self.query = self.contractFromGifRegistry(QueryController, "Query")
+        self.licence = self.contractFromGifRegistry(LicenseController, "License")
+        self.policy = self.contractFromGifRegistry(PolicyController, "Policy")
 
+        self.oracleService = self.contractFromGifRegistry(OracleService, "OracleService")
+        self.productService = self.contractFromGifRegistry(ProductService, "ProductService")
+
+        # self.oracleService = self.contractFromGifRegistry(OracleService)
+        # self.productService = self.contractFromGifRegistry(ProductService)
         self.policyFlow = self.contractFromGifRegistry(PolicyFlowDefault)
-        self.productService = self.contractFromGifRegistry(ProductService)
         self.componentOwnerService = self.contractFromGifRegistry(ComponentOwnerService)
-        self.oracleService = self.contractFromGifRegistry(OracleService)
         self.instanceOperatorService = self.contractFromGifRegistry(InstanceOperatorService)
 
     def contractFromGifRegistry(self, contractClass, name=None):
@@ -164,9 +169,15 @@ class GifInstance(GifRegistry):
 
     def getInstanceOperatorService(self) -> InstanceOperatorService:
         return self.instanceOperatorService
+
+    def getInstanceService(self) -> InstanceService:
+        return self.instanceService
     
     def getProductService(self) -> ProductService:
         return self.productService
+    
+    def getPolicyFlowDefault(self) -> PolicyFlowDefault:
+        return self.policyFlow
     
     def getComponentOwnerService(self) -> ComponentOwnerService:
         return self.componentOwnerService

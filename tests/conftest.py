@@ -7,10 +7,9 @@ from brownie import (
     Wei,
     Contract, 
     CoreProxy,
+    AccessController,
     RegistryController,
-    License,
     LicenseController,
-    Policy,
     PolicyController,
     QueryController,
     ProductService,
@@ -136,16 +135,16 @@ def registry(registryController, owner) -> RegistryController:
     return registry
 
 @pytest.fixture(scope="module")
-def access(AccessController, registry, owner) -> License:
+def access(AccessController, registry, owner) -> AccessController:
     return deployGifModuleV2("Access", AccessController, registry, owner, PUBLISH_SOURCE)
 
 @pytest.fixture(scope="module")
-def license(LicenseController, License, registry, owner) -> License:
-    return deployGifModule(LicenseController, License, registry, owner, PUBLISH_SOURCE)
+def policy(PolicyController, registry, owner) -> PolicyController:
+    return deployGifModuleV2("Policy", PolicyController, registry, owner, PUBLISH_SOURCE)
 
 @pytest.fixture(scope="module")
-def policy(PolicyController, Policy, registry, owner) -> Policy:
-    return deployGifModule(PolicyController, Policy, registry, owner, PUBLISH_SOURCE)
+def license(LicenseController, registry, owner) -> LicenseController:
+    return deployGifModuleV2("License", LicenseController, registry, owner, PUBLISH_SOURCE)
 
 @pytest.fixture(scope="module")
 def query(QueryController, registry, owner) -> QueryController:
@@ -157,11 +156,11 @@ def productService(ProductService, registry, owner) -> ProductService:
 
 @pytest.fixture(scope="module")
 def oracleService(OracleService, registry, owner) -> OracleService:
-    return deployGifService(OracleService, registry, owner, PUBLISH_SOURCE)
+    return deployGifModuleV2("OracleService", OracleService, registry, owner, PUBLISH_SOURCE)
 
 @pytest.fixture(scope="module")
 def componentOwnerService(ComponentOwnerService, registry, owner) -> ComponentOwnerService:
-    return deployGifService(ComponentOwnerService, registry, owner, PUBLISH_SOURCE)
+    return deployGifModuleV2("ComponentOwnerService", ComponentOwnerService, registry, owner, PUBLISH_SOURCE)
 
 @pytest.fixture(scope="module")
 def policyFlowDefault(PolicyFlowDefault, registry, owner) -> PolicyFlowDefault:
@@ -169,7 +168,8 @@ def policyFlowDefault(PolicyFlowDefault, registry, owner) -> PolicyFlowDefault:
 
 @pytest.fixture(scope="module")
 def instanceOperatorService(InstanceOperatorService, registry, owner) -> InstanceOperatorService:
-    return deployGifService(InstanceOperatorService, registry, owner, PUBLISH_SOURCE)
+    # return deployGifService(InstanceOperatorService, registry, owner, PUBLISH_SOURCE)
+    return deployGifModuleV2("InstanceOperatorService", InstanceOperatorService, registry, owner, PUBLISH_SOURCE)
 
 def contractFromAddress(contractClass, contractAddress):
     return Contract.from_abi(contractClass._name, contractAddress, contractClass.abi)

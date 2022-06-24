@@ -16,24 +16,25 @@ from scripts.util import s2b32
 
 
 def test_deploy(instance: GifInstance, oracleOwner, productOwner):
-    ios = instance.getInstanceOperatorService()
+    instanceService = instance.getInstanceService()
 
     # TODO think if/how type specific component counts are really needed
-    assert ios.oracles() == 0
-    assert ios.products() == 0
+    assert instanceService.oracles() == 0
+    assert instanceService.products() == 0
 
     oracle = GifTestOracle(instance, oracleOwner)
 
-    assert ios.oracles() == 1
-    assert ios.products() == 0
+    assert instanceService.oracles() == 1
+    assert instanceService.products() == 0
 
     product = GifTestProduct(instance, oracle, productOwner)
 
-    assert ios.oracles() == 1
-    assert ios.products() == 1
+    assert instanceService.oracles() == 1
+    assert instanceService.products() == 1
 
 
 def test_deploy_oracle_and_oracle_provider_role(instance: GifInstance, owner, oracleProvider):
+    instanceService = instance.getInstanceService()
     operatorService = instance.getInstanceOperatorService()
     componentOwnerService = instance.getComponentOwnerService()
 
@@ -48,8 +49,11 @@ def test_deploy_oracle_and_oracle_provider_role(instance: GifInstance, owner, or
             {'from': oracleProvider})
     
     # add granting role
-    opRole = operatorService.oracleProviderRole()
-    operatorService.addRoleToAccount(oracleProvider, opRole)
+    providerRole = instanceService.oracleProviderRole()
+    operatorService.grantRole(
+        providerRole,
+        oracleProvider, 
+        {'from': instance.getOwner()})
 
     # try again
     componentOwnerService.propose(
@@ -58,6 +62,7 @@ def test_deploy_oracle_and_oracle_provider_role(instance: GifInstance, owner, or
 
 
 def test_deploy_approve_oracle(instance: GifInstance, oracleProvider, productOwner):
+    instanceService = instance.getInstanceService()
     operatorService = instance.getInstanceOperatorService()
     componentOwnerService = instance.getComponentOwnerService()
     oracle = TestOracle.deploy(
@@ -66,28 +71,33 @@ def test_deploy_approve_oracle(instance: GifInstance, oracleProvider, productOwn
         {'from': oracleProvider})
     
     # add granting role and propose
-    opRole = operatorService.oracleProviderRole()
-    operatorService.addRoleToAccount(oracleProvider, opRole)
+    providerRole = instanceService.oracleProviderRole()
+    operatorService.grantRole(
+        providerRole,
+        oracleProvider, 
+        {'from': instance.getOwner()})
+    
     componentOwnerService.propose(
         oracle,
         {'from': oracleProvider})
 
     # verify that productOwner cannot approve the oracle
     with brownie.reverts():
-        operatorService.approveOracle(
+        operatorService.approve(
             oracle.getId(),
             {'from': productOwner})
 
     # verify that instance operator can approve the propsed oracle
-    operatorService.approveOracle(
+    operatorService.approve(
         oracle.getId(),
         {'from': instance.getOwner()})
 
 
 def test_deploy_approve_product(instance: GifInstance, oracleProvider, productOwner):
+    instanceService = instance.getInstanceService()
     operatorService = instance.getInstanceOperatorService()
     componentOwnerService = instance.getComponentOwnerService()
-    productService = instance.getProductService()
+    registry = instance.getRegistry()
 
     # oracle owner proposes oracle
     oracle = TestOracle.deploy(
@@ -96,38 +106,58 @@ def test_deploy_approve_product(instance: GifInstance, oracleProvider, productOw
         {'from': oracleProvider})
     
     # add granting role and propose
-    opRole = operatorService.oracleProviderRole()
-    operatorService.addRoleToAccount(oracleProvider, opRole)
+    providerRole = instanceService.oracleProviderRole()
+    operatorService.grantRole(
+        providerRole,
+        oracleProvider, 
+        {'from': instance.getOwner()})
+    
     componentOwnerService.propose(
         oracle,
         {'from': oracleProvider})
 
-
     # instance operator can approve the propsed oracle
-    operatorService.approveOracle(
+    operatorService.approve(
         oracle.getId(),
         {'from': instance.getOwner()})
 
     product = TestProduct.deploy(
-        productService,
         s2b32("TestProduct"),
+        registry,
         oracle.getId(),
         {'from': productOwner})
+    
+    # add granting role and propose
+    ownerRole = instanceService.productOwnerRole()
+    operatorService.grantRole(
+        ownerRole,
+        productOwner, 
+        {'from': instance.getOwner()})
 
-    productId = product.getId()
+    # check that product owner may not propose compoent
+    # without being owner
+    with brownie.reverts():
+        componentOwnerService.propose(
+            oracle,
+            {'from': productOwner})
+
+    # check that product owner may proposes his/her product
+    componentOwnerService.propose(
+        product,
+        {'from': productOwner})
 
     # verify that oracleOwner or productOwner cannot approve the product
     with brownie.reverts():
-        operatorService.approveProduct(
-            productId,
+        operatorService.approve(
+            product.getId(),
             {'from': oracleProvider})
 
     with brownie.reverts():
-        operatorService.approveProduct(
-            productId,
+        operatorService.approve(
+            product.getId(),
             {'from': productOwner})
 
     # verify that instance operator can approve the propsed product
-    operatorService.approveProduct(
-        productId,
+    operatorService.approve(
+        product.getId(),
         {'from': instance.getOwner()})

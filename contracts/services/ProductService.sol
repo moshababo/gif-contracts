@@ -2,37 +2,83 @@
 pragma solidity ^0.8.0;
 
 import "../shared/WithRegistry.sol";
-import "../shared/Delegator.sol";
-import "../modules/license/ILicenseController.sol";
+// import "../shared/CoreController.sol";
+import "@gif-interface/contracts/modules/ILicense.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
 
-contract ProductService is WithRegistry, Delegator {
+contract ProductService is 
+    WithRegistry, 
+    // CoreController
+    Context
+ {
+    event LogPsDummy1 (
+        address licenceAddress
+    );
+
+    event LogPsDummy2 (
+        uint256 id,
+        bool isAuthorized,
+        address policyFlowAddress
+    );
+
     bytes32 public constant NAME = "ProductService";
 
     // solhint-disable-next-line no-empty-blocks
     constructor(address _registry) WithRegistry(_registry) {}
 
     fallback() external {
-        (bool authorized, address policyFlow) = license().authorize(msg.sender);
 
-        require(authorized == true, "ERROR:PRS-001:NOT_AUTHORIZED");
-        require(
-            policyFlow != address(0),
-            "ERROR:PRS-002:POLICY_FLOW_NOT_RESOLVED"
-        );
+        emit LogPsDummy1(address(_license()));
+
+        (uint256 id, bool isAuthorized, address policyFlow) = _license().getAuthorizationStatus(_msgSender());
+
+        emit LogPsDummy2(id, isAuthorized, policyFlow);
+
+        require(isAuthorized, "ERROR:PRS-001:NOT_AUTHORIZED");
+        require(policyFlow != address(0),"ERROR:PRS-002:POLICY_FLOW_NOT_RESOLVED");
 
         _delegate(policyFlow);
     }
 
-    function proposeProduct(bytes32 _name, bytes32 _policyFlow)
-        external
-        // TODO reenable onlyProductOwnerRole modifier
-        // onlyProductOwnerRole
-        returns (uint256 _productId)
-    {
-        _productId = license().proposeProduct(_name, msg.sender, _policyFlow);
+    /**
+     * @dev Delegates the current call to `implementation`.
+     *
+     * This function does not return to its internal call site, it will return directly to the external caller.
+     * This function is a 1:1 copy of _delegate from 
+     * https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.6/contracts/proxy/Proxy.sol
+     */
+    function _delegate(address implementation) internal {
+        assembly {
+            // Copy msg.data. We take full control of memory in this inline assembly
+            // block because it will not return to Solidity code. We overwrite the
+            // Solidity scratch pad at memory position 0.
+            calldatacopy(0, 0, calldatasize())
+
+            // Call the implementation.
+            // out and outsize are 0 because we don't know the size yet.
+            let result := delegatecall(gas(), implementation, 0, calldatasize(), 0, 0)
+
+            // Copy the returned data.
+            returndatacopy(0, 0, returndatasize())
+
+            switch result
+            // delegatecall returns 0 on error.
+            case 0 {
+                revert(0, returndatasize())
+            }
+            default {
+                return(0, returndatasize())
+            }
+        }
     }
 
-    function license() internal view returns (ILicenseController) {
-        return ILicenseController(registry.getContract("License"));
+    // function _license() internal view returns (ILicense) {
+    //     address licenseAddress = _getContractAddress("License");
+    //     return ILicense(licenseAddress);
+    // }
+    
+    function _license() internal view returns (ILicense) {
+        return ILicense(registry.getContract("License"));
     }
+
 }

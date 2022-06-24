@@ -12,11 +12,19 @@ contract QueryController is
     IQuery, 
     CoreController
 {
-    bytes32 public constant NAME = "QueryController";
+    // bytes32 public constant NAME = "QueryController";
 
     OracleRequest[] public oracleRequests;
 
-    modifier isResponsibleOracle(uint256 requestId, address responder) {
+    modifier onlyOracleService() {
+        require(
+            _msgSender() == _getContractAddress("OracleService"),
+            "ERROR:CRC-004:NOT_ORACLE_SERVICE"
+        );
+        _;
+    }
+
+    modifier onlyResponsibleOracle(uint256 requestId, address responder) {
         OracleRequest memory oracleRequest = oracleRequests[requestId];
         uint256 oracleId = oracleRequest.responsibleOracleId;
 
@@ -72,7 +80,7 @@ contract QueryController is
     ) 
         external override 
         onlyOracleService 
-        isResponsibleOracle(_requestId, _responder) 
+        onlyResponsibleOracle(_requestId, _responder) 
     {
         OracleRequest storage req = oracleRequests[_requestId];
 
@@ -102,8 +110,7 @@ contract QueryController is
 
     function _getOracle(uint256 id) internal view returns (IOracle oracle) {
         IComponent cmp = _component().getComponent(id);
-        require(cmp.getType() == 2, "ERROR:QUC-00x:COMPONENT_NOT_ORACLE");
-
+        require(cmp.getType() == 2, "ERROR:QUC-002:COMPONENT_NOT_ORACLE");
         oracle = IOracle(address(cmp));
     }
 

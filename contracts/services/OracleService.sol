@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.0;
 
-import "../shared/WithRegistry.sol";
+import "../shared/CoreController.sol";
 import "@gif-interface/contracts/modules/IQuery.sol";
 import "@gif-interface/contracts/services/IOracleService.sol";
 
-contract OracleService is IOracleService, WithRegistry {
-    bytes32 public constant NAME = "OracleService";
 
-    // solhint-disable-next-line no-empty-blocks
-    constructor(address _registry) WithRegistry(_registry) {}
+contract OracleService is 
+    IOracleService, 
+    CoreController
+{
+    IQuery private _query;
 
-    function respond(uint256 _requestId, bytes calldata _data) external override {
-        // todo: oracle contract should be approved
-        query().respond(_requestId, msg.sender, _data);
+    function _afterInitialize() internal override onlyInitializing {
+        _query = IQuery(_getContractAddress("Query"));
     }
 
-    /* Lookup */
-    function query() internal view returns (IQuery) {
-        return IQuery(registry.getContract("Query"));
+    function respond(uint256 _requestId, bytes calldata _data) external override {
+        // TODO: oracle contract should be approved
+        _query.respond(_requestId, _msgSender(), _data);
     }
 }

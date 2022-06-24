@@ -8,11 +8,7 @@ from brownie.network.account import Account
 from brownie import (
     Wei,
     Contract, 
-    # Registry,
-    # RegistryController,
-    License,
     LicenseController,
-    Policy,
     PolicyController,
     QueryController,
     ProductService,
@@ -47,15 +43,19 @@ from scripts.instance import (
 class GifTestOracle(object):
 
     def __init__(self, instance: GifInstance, oracleOwner: Account):
+        instanceService = instance.getInstanceService()
         operatorService = instance.getInstanceOperatorService()
         componentOwnerService = instance.getComponentOwnerService()
         oracleService = instance.getOracleService()
 
         # 1) add oracle provider role to owner
-        opRole = operatorService.oracleProviderRole()
-        operatorService.addRoleToAccount(oracleOwner, opRole)
+        providerRole = instanceService.oracleProviderRole()
+        operatorService.grantRole(
+            providerRole, 
+            oracleOwner, 
+            {'from': instance.getOwner()})
 
-        # 2) oracle owner creates oracle
+        # 2) oracle provider creates oracle
         self.oracle = TestOracle.deploy(
             s2b32(ORACLE_NAME),
             instance.getRegistry(),
@@ -67,7 +67,7 @@ class GifTestOracle(object):
             {'from': oracleOwner})
 
         # 4) instance operator approves oracle
-        operatorService.approveOracle(
+        operatorService.approve(
             self.oracle.getId(),
             {'from': instance.getOwner()})
     
@@ -83,16 +83,34 @@ class GifTestProduct(object):
     def __init__(self, instance: GifInstance, oracle: GifTestOracle, productOwner: Account):
         self.policyController = instance.getPolicyController()
 
+        instanceService = instance.getInstanceService()
         operatorService = instance.getInstanceOperatorService()
-        productService = instance.getProductService()
+        componentOwnerService = instance.getComponentOwnerService()
+        registry = instance.getRegistry()
 
+        # 1) add oracle provider role to owner
+        ownerRole = instanceService.productOwnerRole()
+        operatorService.grantRole(
+            ownerRole,
+            productOwner, 
+            {'from': instance.getOwner()})
+
+        # 2) product owner creates product
         self.product = TestProduct.deploy(
-            productService,
             s2b32(PRODUCT_NAME),
+            registry,
             oracle.getOracleId(),
             {'from': productOwner})
 
-        operatorService.approveProduct(
+        print('prod id {} (before propose)'.format(self.product.getId()))
+        # 3) oracle owner proposes oracle to instance
+        componentOwnerService.propose(
+            self.product,
+            {'from': productOwner})
+
+        print('prod id {} (after propose)'.format(self.product.getId()))
+        # 4) instance operator approves oracle
+        operatorService.approve(
             self.product.getId(),
             {'from': instance.getOwner()})
     

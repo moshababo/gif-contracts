@@ -2,23 +2,15 @@
 pragma solidity ^0.8.0;
 
 import "../modules/ComponentController.sol";
+import "../shared/CoreController.sol";
 import "@gif-interface/contracts/components/IComponent.sol";
-import "@gif-interface/contracts/modules/IAccess.sol";
-import "@gif-interface/contracts/modules/IRegistry.sol";
 import "@gif-interface/contracts/services/IComponentOwnerService.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
 
 contract ComponentOwnerService is 
-    Context,
-    IComponentOwnerService
+    IComponentOwnerService,
+    CoreController
 {
-    // TODO figure out if we should keep the pattern that core contracts have a name
-    bytes32 public constant NAME = "ComponentOwnerService";
-
-    IRegistry private _registry;
-    IAccess private _access;
-    ComponentController private _componentController;
-
+    ComponentController private _component;
 
     modifier onlyOwnerWithRoleFromComponent(IComponent component) {
         address owner = component.getOwner();
@@ -28,9 +20,8 @@ contract ComponentOwnerService is
         _;
     }
 
-
     modifier onlyOwnerWithRole(uint256 id) {
-        IComponent component = _componentController.getComponent(id);
+        IComponent component = _component.getComponent(id);
         require(address(component) != address(0), "ERROR:COS-003:COMPONENT_ID_INVALID");
 
         address owner = component.getOwner();
@@ -41,57 +32,35 @@ contract ComponentOwnerService is
         _;
     }
 
-
-    constructor(IRegistry registry) {
-        require(address(registry) != address(0), "ERROR:COS-006:REGISTRY_ADDRESS_ZERO");
-
-        _registry = registry;
-        _access = _getAccess();
-        _componentController = _getComponentController();
+    function _afterInitialize() internal override onlyInitializing {
+        _component = ComponentController(_getContractAddress("Component"));
     }
-
 
     function propose(IComponent component) 
         external 
         onlyOwnerWithRoleFromComponent(component) 
     {
-        _componentController.propose(component);
+        _component.propose(component);
     }
 
+    function stake(uint256 id) external onlyOwnerWithRole(id) {
+        revert("ERROR:COS-006:IMPLEMENATION_MISSING");
+    }
 
-    function stake(
-        uint256 id, 
-        address [] calldata tokens, 
-        uint256 [] calldata amounts
-    ) 
-        external 
-        onlyOwnerWithRole(id)
-    { }
-
-    function withdraw(
-        uint256 id, 
-        address [] calldata tokens, 
-        uint256 [] calldata amounts
-    ) 
-        external
-        onlyOwnerWithRole(id)
-    { }
+    function withdraw(uint256 id) external onlyOwnerWithRole(id) {
+        revert("ERROR:COS-007:IMPLEMENATION_MISSING");
+    }
         
 
     function pause(uint256 id) external onlyOwnerWithRole(id) {
-        _componentController.pause(id);
+        _component.pause(id);
     }
 
     function unpause(uint256 id) external onlyOwnerWithRole(id) {
-        _componentController.unpause(id);
+        _component.unpause(id);
     }
 
-    function _getAccess() internal view returns (IAccess) {
-        return IAccess(_registry.getContract("Access"));
-    }
-
-
-    function _getComponentController() internal view returns (ComponentController) {
-        return ComponentController(_registry.getContract("Component"));
+    function getComponentId(address componentAddress) external returns(uint256 id) {
+        _component.getComponentId(componentAddress);
     }
 }
